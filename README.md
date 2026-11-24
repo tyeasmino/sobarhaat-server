@@ -98,7 +98,8 @@ data leaks into the UI.
 
 ## Deployment (Render)
 
-1. Create a Web Service for this repo. Build: `npm install`; start: `npm start`.
+1. Create a Web Service for this repo, or use the included `render.yaml`
+   blueprint (build: `npm install`; start: `npm start`; health check: `/`).
 2. Set `MONGODB_URI`, `BETTER_AUTH_URL` to the deployed Vercel origin, and
    `CORS_ORIGINS` to that same origin.
 3. In Vercel set `NEXT_PUBLIC_API_URL` to this Render URL and `BETTER_AUTH_URL`
