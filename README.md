@@ -30,7 +30,7 @@ Default port is `8000`; override with `PORT`.
 | `MONGODB_URI` | MongoDB Atlas connection string |
 | `BETTER_AUTH_URL` | Client origin. JWT issuer **and** audience; JWKS URL is `${BETTER_AUTH_URL}/api/auth/jwks`. Must match the client exactly. |
 | `CORS_ORIGINS` | Comma-separated origins allowed to send credentials (defaults to localhost) |
-| `PORT` | Express port (Render injects this) |
+| `PORT` | Express port for local development (Vercel does not use it) |
 
 See `.env.example` for a template.
 
@@ -96,14 +96,20 @@ data leaks into the UI.
 - Joining a past event returns `400`; duplicate joins return `alreadyJoined`.
 - Deleting an event also deletes its joins so counts cannot go stale.
 
-## Deployment (Render)
+## Deployment (Vercel)
 
-1. Create a Web Service for this repo, or use the included `render.yaml`
-   blueprint (build: `npm install`; start: `npm start`; health check: `/`).
-2. Set `MONGODB_URI`, `BETTER_AUTH_URL` to the deployed Vercel origin, and
+The included `vercel.json` deploys `index.js` as a Vercel serverless function
+using `@vercel/node`; all paths are routed to that function. `index.js` exports
+the Express app and only calls `app.listen()` outside Vercel, so `npm start`
+continues to work locally.
+
+1. Import this repository as a separate Vercel project. Framework preset:
+   **Other**. Vercel reads `vercel.json` automatically.
+2. Set `MONGODB_URI`, `BETTER_AUTH_URL` to the client app's Vercel origin, and
    `CORS_ORIGINS` to that same origin.
-3. In Vercel set `NEXT_PUBLIC_API_URL` to this Render URL and `BETTER_AUTH_URL`
-   to the Vercel origin — both sides must agree or JWT verification fails.
+3. In the client project set `NEXT_PUBLIC_API_URL` to this API deployment URL
+   and `BETTER_AUTH_URL` to the client origin. Both sides must use the same
+   `BETTER_AUTH_URL` or JWT verification will fail.
 
 ## Verification
 
