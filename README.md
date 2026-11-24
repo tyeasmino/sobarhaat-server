@@ -28,7 +28,8 @@ Default port is `8000`; override with `PORT`.
 | Variable | Purpose |
 | --- | --- |
 | `MONGODB_URI` | MongoDB Atlas connection string |
-| `BETTER_AUTH_URL` | Client origin. JWT issuer **and** audience; JWKS URL is `${BETTER_AUTH_URL}/api/auth/jwks`. Must match the client exactly. |
+| `BETTER_AUTH_URL` | Client origin. JWT issuer **and** audience; must match the client exactly. |
+| `CLIENT_URL` | Origin that serves `/api/auth/jwks`. Defaults to `BETTER_AUTH_URL` locally and to the production client origin on Vercel. |
 | `CORS_ORIGINS` | Comma-separated origins allowed to send credentials (defaults to localhost) |
 | `PORT` | Express port for local development (Vercel does not use it) |
 

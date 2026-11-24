@@ -105,11 +105,22 @@ async function realJoinCount(id) {
 
 const AUTH_ORIGIN = process.env.BETTER_AUTH_URL || "http://localhost:3000";
 
+// The JWKS always lives on the Next.js client app, never on this API. When
+// deployed to Vercel, BETTER_AUTH_URL is sometimes set to the API's own origin
+// by mistake, which makes every JWT fail with "Invalid or expired token".
+// Prefer CLIENT_URL, then the known production client origin, and fall back to
+// AUTH_ORIGIN only for local development.
+const CLIENT_ORIGIN =
+  process.env.CLIENT_URL ||
+  (process.env.VERCEL
+    ? "https://sobarhaat-client.vercel.app"
+    : AUTH_ORIGIN);
+
 /**
  * Sir-er pattern: fetch the public keys from BetterAuth's JWKS endpoint and
  * let `jose` pick the right key from the token header (`kid`).
  */
-const JWKS = createRemoteJWKSet(new URL(`${AUTH_ORIGIN}/api/auth/jwks`));
+const JWKS = createRemoteJWKSet(new URL(`${CLIENT_ORIGIN}/api/auth/jwks`));
 
 async function verifyJwt(token) {
   try {
