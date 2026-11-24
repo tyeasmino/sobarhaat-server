@@ -370,7 +370,13 @@ app.get("/joined-events", verifyToken({ message: "Please sign in to view joined 
         eventCollection.findOne({ _id: idFilter(String(join.eventId)) })
       )
     );
-    res.send(await publicEvents(events.filter(Boolean)));
+
+    // Requirement: joined drives are ordered by their event date, not by when
+    // the volunteer clicked Join.
+    const sorted = (await publicEvents(events.filter(Boolean))).sort((a, b) =>
+      String(a.date ?? "").localeCompare(String(b.date ?? ""))
+    );
+    res.send(sorted);
   } catch (err) {
     console.error(err);
     res.status(500).send({ message: "Failed to load joined events" });
