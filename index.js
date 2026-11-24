@@ -244,7 +244,12 @@ app.post(
 // anonymous visitor-er jonno optional.
 app.get("/events", verifyToken({ optional: true }), async (req, res) => {
   try {
-    const events = await eventCollection.find({}).sort({ date: 1 }).toArray();
+    // Upcoming only — passed drives live in the public /events/archived route.
+    const today = new Date().toISOString().slice(0, 10);
+    const events = await eventCollection
+      .find({ date: { $gte: today } })
+      .sort({ date: 1 })
+      .toArray();
     res.send(await publicEvents(events));
   } catch (err) {
     console.error(err);
