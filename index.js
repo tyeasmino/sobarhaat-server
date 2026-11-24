@@ -7,10 +7,18 @@ import { MongoClient, ObjectId } from "mongodb";
 const app = express();
 const PORT = process.env.PORT || 8000;
 
-// The browser must be allowed to send the BetterAuth session cookie.
+// The browser must be allowed to send the BetterAuth session cookie. In
+// production set CORS_ORIGINS to the deployed client URL (comma-separated for
+// Vercel preview aliases); localhost remains the default for local development.
+const allowedOrigins = (process.env.CORS_ORIGINS ||
+  "http://localhost:3000,http://127.0.0.1:3000")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
 app.use(
   cors({
-    origin: ["http://localhost:3000", "http://127.0.0.1:3000"],
+    origin: allowedOrigins,
     credentials: true,
   })
 );
