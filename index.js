@@ -10,8 +10,9 @@ const PORT = process.env.PORT || 8000;
 // The browser must be allowed to send the BetterAuth session cookie. In
 // production set CORS_ORIGINS to the deployed client URL (comma-separated for
 // Vercel preview aliases); localhost remains the default for local development.
-const allowedOrigins = (process.env.CORS_ORIGINS ||
-  "http://localhost:3000,http://127.0.0.1:3000")
+const allowedOrigins = (
+  process.env.CORS_ORIGINS || "http://localhost:3000,http://127.0.0.1:3000"
+)
   .split(",")
   .map((origin) => origin.trim())
   .filter(Boolean);
@@ -20,7 +21,7 @@ app.use(
   cors({
     origin: allowedOrigins,
     credentials: true,
-  })
+  }),
 );
 app.use(express.json());
 
@@ -66,7 +67,7 @@ async function joinCountsByEvent(events) {
   if (!ids.length) return new Map();
 
   const matchIds = ids.flatMap((id) =>
-    /^[0-9a-fA-F]{24}$/.test(id) ? [id, new ObjectId(id)] : [id]
+    /^[0-9a-fA-F]{24}$/.test(id) ? [id, new ObjectId(id)] : [id],
   );
   const rows = await joinCollection
     .aggregate([
@@ -231,12 +232,12 @@ async function createEventHandler(req, res) {
 app.post(
   "/create-event",
   verifyToken({ message: "Please sign in to create an event." }),
-  createEventHandler
+  createEventHandler,
 );
 app.post(
   "/events",
   verifyToken({ message: "Please sign in to create an event." }),
-  createEventHandler
+  createEventHandler,
 );
 
 // ------------------------------------------------------------------ list
@@ -276,27 +277,35 @@ app.get("/events/recent", verifyToken({ optional: true }), async (req, res) => {
 
 // Public archive: past drives, most recent first. `limit` is optional — the
 // homepage asks for 6, the archive page leaves it off to get every event.
-app.get("/events/archived", verifyToken({ optional: true }), async (req, res) => {
-  try {
-    const today = new Date().toISOString().slice(0, 10);
-    let query = eventCollection.find({ date: { $lt: today } }).sort({ date: -1 });
-    if (req.query.limit !== undefined) {
-      const limit = Math.min(Math.max(Number(req.query.limit) || 6, 1), 24);
-      query = query.limit(limit);
+app.get(
+  "/events/archived",
+  verifyToken({ optional: true }),
+  async (req, res) => {
+    try {
+      const today = new Date().toISOString().slice(0, 10);
+      let query = eventCollection
+        .find({ date: { $lt: today } })
+        .sort({ date: -1 });
+      if (req.query.limit !== undefined) {
+        const limit = Math.min(Math.max(Number(req.query.limit) || 6, 1), 24);
+        query = query.limit(limit);
+      }
+      const events = await query.toArray();
+      res.send(await publicEvents(events));
+    } catch (err) {
+      console.error(err);
+      res.status(500).send({ message: "Failed to load archived events" });
     }
-    const events = await query.toArray();
-    res.send(await publicEvents(events));
-  } catch (err) {
-    console.error(err);
-    res.status(500).send({ message: "Failed to load archived events" });
-  }
-});
+  },
+);
 
 // Sir-er GET /destination/:id equivalent. Details are public, so verifyToken
 // runs in optional mode: valid JWT thakle req.user set hoy, na hole-o data dey.
 app.get("/events/:id", verifyToken({ optional: true }), async (req, res) => {
   try {
-    const event = await eventCollection.findOne({ _id: idFilter(req.params.id) });
+    const event = await eventCollection.findOne({
+      _id: idFilter(req.params.id),
+    });
     if (!event) return res.status(404).send({ message: "Event not found." });
     res.send(await publicEvent(event));
   } catch (err) {
@@ -318,7 +327,9 @@ app.post(
 
       const today = new Date().toISOString().slice(0, 10);
       if (String(event.date ?? "") < today) {
-        return res.status(400).send({ message: "This event has already ended." });
+        return res
+          .status(400)
+          .send({ message: "This event has already ended." });
       }
 
       // The organiser may also take part as a volunteer — no block here.
@@ -344,7 +355,7 @@ app.post(
       const count = await realJoinCount(id);
       await eventCollection.updateOne(
         { _id: idFilter(id) },
-        { $set: { volunteers: count } }
+        { $set: { volunteers: count } },
       );
 
       res.send({
@@ -356,67 +367,81 @@ app.post(
       console.error(err);
       res.status(500).send({ message: "Failed to join event" });
     }
-  }
+  },
 );
 
-app.get("/joined-events", verifyToken({ message: "Please sign in to view joined events." }), async (req, res) => {
-  try {
-    const joins = await joinCollection
-      .find({ userEmail: req.user.email })
-      .sort({ joinedAt: -1 })
-      .toArray();
-    const events = await Promise.all(
-      joins.map((join) =>
-        eventCollection.findOne({ _id: idFilter(String(join.eventId)) })
-      )
-    );
+app.get(
+  "/joined-events",
+  verifyToken({ message: "Please sign in to view joined events." }),
+  async (req, res) => {
+    try {
+      const joins = await joinCollection
+        .find({ userEmail: req.user.email })
+        .sort({ joinedAt: -1 })
+        .toArray();
+      const events = await Promise.all(
+        joins.map((join) =>
+          eventCollection.findOne({ _id: idFilter(String(join.eventId)) }),
+        ),
+      );
 
-    // Requirement: joined drives are ordered by their event date, not by when
-    // the volunteer clicked Join.
-    const sorted = (await publicEvents(events.filter(Boolean))).sort((a, b) =>
-      String(a.date ?? "").localeCompare(String(b.date ?? ""))
-    );
-    res.send(sorted);
-  } catch (err) {
-    console.error(err);
-    res.status(500).send({ message: "Failed to load joined events" });
-  }
-});
+      // Requirement: joined drives are ordered by their event date, not by when
+      // the volunteer clicked Join.
+      const sorted = (await publicEvents(events.filter(Boolean))).sort((a, b) =>
+        String(a.date ?? "").localeCompare(String(b.date ?? "")),
+      );
+      res.send(sorted);
+    } catch (err) {
+      console.error(err);
+      res.status(500).send({ message: "Failed to load joined events" });
+    }
+  },
+);
 
 // ------------------------------------------------------------- my events
 // Token-first route: the owner comes from the verified Bearer JWT / session,
 // not from a URL parameter. Client sends `Authorization: Bearer <jwt>`.
-app.get("/manage-events", verifyToken({ message: "Please sign in to view your events." }), async (req, res) => {
-  try {
-    const events = await eventCollection
-      .find({ creatorEmail: req.user.email })
-      .sort({ createdAt: -1 })
-      .toArray();
-    res.send(await publicEvents(events));
-  } catch (err) {
-    console.error(err);
-    res.status(500).send({ message: "Failed to load events" });
-  }
-});
+app.get(
+  "/manage-events",
+  verifyToken({ message: "Please sign in to view your events." }),
+  async (req, res) => {
+    try {
+      const events = await eventCollection
+        .find({ creatorEmail: req.user.email })
+        .sort({ createdAt: -1 })
+        .toArray();
+      res.send(await publicEvents(events));
+    } catch (err) {
+      console.error(err);
+      res.status(500).send({ message: "Failed to load events" });
+    }
+  },
+);
 
 // Kept for older clients that still pass the email in the path.
-app.get("/manage-events/:email", verifyToken({ message: "Please sign in to view your events." }), async (req, res) => {
-  try {
-    const user = req.user;
-    if (user.email !== String(req.params.email).toLowerCase()) {
-      return res.status(403).send({ message: "You can only view your own events." });
-    }
+app.get(
+  "/manage-events/:email",
+  verifyToken({ message: "Please sign in to view your events." }),
+  async (req, res) => {
+    try {
+      const user = req.user;
+      if (user.email !== String(req.params.email).toLowerCase()) {
+        return res
+          .status(403)
+          .send({ message: "You can only view your own events." });
+      }
 
-    const events = await eventCollection
-      .find({ creatorEmail: user.email })
-      .sort({ createdAt: -1 })
-      .toArray();
-    res.send(await publicEvents(events));
-  } catch (err) {
-    console.error(err);
-    res.status(500).send({ message: "Failed to load events" });
-  }
-});
+      const events = await eventCollection
+        .find({ creatorEmail: user.email })
+        .sort({ createdAt: -1 })
+        .toArray();
+      res.send(await publicEvents(events));
+    } catch (err) {
+      console.error(err);
+      res.status(500).send({ message: "Failed to load events" });
+    }
+  },
+);
 
 const EDITABLE_FIELDS = [
   "title",
@@ -428,65 +453,79 @@ const EDITABLE_FIELDS = [
   "description",
 ];
 
-app.put("/manage-events/:id", verifyToken({ message: "Please sign in to edit an event." }), async (req, res) => {
-  try {
-    const user = req.user;
-    const { id } = req.params;
-    const event = await eventCollection.findOne({ _id: idFilter(id) });
-    if (!event) return res.status(404).send({ message: "Event not found." });
+app.put(
+  "/manage-events/:id",
+  verifyToken({ message: "Please sign in to edit an event." }),
+  async (req, res) => {
+    try {
+      const user = req.user;
+      const { id } = req.params;
+      const event = await eventCollection.findOne({ _id: idFilter(id) });
+      if (!event) return res.status(404).send({ message: "Event not found." });
 
-    if (String(event.creatorEmail ?? "").toLowerCase() !== user.email) {
-      return res
-        .status(403)
-        .send({ message: "Only the event creator can edit this event." });
+      if (String(event.creatorEmail ?? "").toLowerCase() !== user.email) {
+        return res
+          .status(403)
+          .send({ message: "Only the event creator can edit this event." });
+      }
+
+      const changes = {};
+      for (const field of EDITABLE_FIELDS) {
+        if (field in (req.body ?? {})) changes[field] = req.body[field];
+      }
+
+      await eventCollection.updateOne(
+        { _id: idFilter(id), creatorEmail: event.creatorEmail },
+        { $set: changes },
+      );
+      const updated = await eventCollection.findOne({ _id: idFilter(id) });
+      res.send({ event: await publicEvent(updated) });
+    } catch (err) {
+      console.error(err);
+      res.status(500).send({ message: "Failed to update event" });
     }
+  },
+);
 
-    const changes = {};
-    for (const field of EDITABLE_FIELDS) {
-      if (field in (req.body ?? {})) changes[field] = req.body[field];
+app.delete(
+  "/manage-events/:id",
+  verifyToken({ message: "Please sign in to delete an event." }),
+  async (req, res) => {
+    try {
+      const user = req.user;
+      const { id } = req.params;
+      const event = await eventCollection.findOne({ _id: idFilter(id) });
+      if (!event) return res.status(404).send({ message: "Event not found." });
+
+      if (String(event.creatorEmail ?? "").toLowerCase() !== user.email) {
+        return res
+          .status(403)
+          .send({ message: "Only the event creator can delete this event." });
+      }
+
+      const result = await eventCollection.deleteOne({
+        _id: idFilter(id),
+        creatorEmail: event.creatorEmail,
+      });
+      await joinCollection.deleteMany({ eventId: id });
+
+      res.send({
+        deletedCount: result.deletedCount,
+        message: "Event deleted successfully.",
+      });
+    } catch (err) {
+      console.error(err);
+      res.status(500).send({ message: "Failed to delete event" });
     }
+  },
+);
 
-    await eventCollection.updateOne(
-      { _id: idFilter(id), creatorEmail: event.creatorEmail },
-      { $set: changes }
-    );
-    const updated = await eventCollection.findOne({ _id: idFilter(id) });
-    res.send({ event: await publicEvent(updated) });
-  } catch (err) {
-    console.error(err);
-    res.status(500).send({ message: "Failed to update event" });
-  }
-});
+// On Vercel the exported app is invoked by @vercel/node. Locally we still
+// start a listener so `npm start` behaves as before.
+if (process.env.VERCEL !== "1") {
+  app.listen(PORT, () => {
+    console.log(`Server is running at ${PORT}`);
+  });
+}
 
-app.delete("/manage-events/:id", verifyToken({ message: "Please sign in to delete an event." }), async (req, res) => {
-  try {
-    const user = req.user;
-    const { id } = req.params;
-    const event = await eventCollection.findOne({ _id: idFilter(id) });
-    if (!event) return res.status(404).send({ message: "Event not found." });
-
-    if (String(event.creatorEmail ?? "").toLowerCase() !== user.email) {
-      return res
-        .status(403)
-        .send({ message: "Only the event creator can delete this event." });
-    }
-
-    const result = await eventCollection.deleteOne({
-      _id: idFilter(id),
-      creatorEmail: event.creatorEmail,
-    });
-    await joinCollection.deleteMany({ eventId: id });
-
-    res.send({
-      deletedCount: result.deletedCount,
-      message: "Event deleted successfully.",
-    });
-  } catch (err) {
-    console.error(err);
-    res.status(500).send({ message: "Failed to delete event" });
-  }
-});
-
-app.listen(PORT, () => {
-  console.log(`Server is running at ${PORT}`);
-});
+export default app;
