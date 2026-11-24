@@ -11,7 +11,8 @@ const PORT = process.env.PORT || 8000;
 // production set CORS_ORIGINS to the deployed client URL (comma-separated for
 // Vercel preview aliases); localhost remains the default for local development.
 const allowedOrigins = (
-  process.env.CORS_ORIGINS || "http://localhost:3000,http://127.0.0.1:3000"
+  process.env.CORS_ORIGINS ||
+  "http://localhost:3000,http://127.0.0.1:3000,https://sobarhaat-client.vercel.app"
 )
   .split(",")
   .map((origin) => origin.trim())
