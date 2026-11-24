@@ -44,6 +44,21 @@ const db = mongoClient.db("sobarhaat");
 const eventCollection = db.collection("events");
 const joinCollection = db.collection("joins");
 
+// `toISOString()` yields the UTC date. In Bangladesh (UTC+6) the local date is
+// already tomorrow between 00:00 and 06:00, so every date comparison must use
+// Asia/Dhaka instead — otherwise today's events leak into the archive and
+// yesterday's date stays selectable in the create form.
+const dhakaDateFormatter = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "Asia/Dhaka",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+
+function todayInDhaka() {
+  return dhakaDateFormatter.format(new Date());
+}
+
 /** Both old (string) and new (ObjectId) event ids are accepted. */
 function idFilter(id) {
   const values = [id];
@@ -258,7 +273,7 @@ app.post(
 app.get("/events", verifyToken({ optional: true }), async (req, res) => {
   try {
     // Upcoming only — passed drives live in the public /events/archived route.
-    const today = new Date().toISOString().slice(0, 10);
+    const today = todayInDhaka();
     const events = await eventCollection
       .find({ date: { $gte: today } })
       .sort({ date: 1 })
@@ -274,7 +289,7 @@ app.get("/events", verifyToken({ optional: true }), async (req, res) => {
 app.get("/events/recent", verifyToken({ optional: true }), async (req, res) => {
   try {
     const limit = Math.min(Number(req.query.limit) || 6, 6);
-    const today = new Date().toISOString().slice(0, 10);
+    const today = todayInDhaka();
     const events = await eventCollection
       .find({ date: { $gte: today } })
       .sort({ date: 1 })
@@ -294,7 +309,7 @@ app.get(
   verifyToken({ optional: true }),
   async (req, res) => {
     try {
-      const today = new Date().toISOString().slice(0, 10);
+      const today = todayInDhaka();
       let query = eventCollection
         .find({ date: { $lt: today } })
         .sort({ date: -1 });
@@ -337,7 +352,7 @@ app.post(
       const event = await eventCollection.findOne({ _id: idFilter(id) });
       if (!event) return res.status(404).send({ message: "Event not found." });
 
-      const today = new Date().toISOString().slice(0, 10);
+      const today = todayInDhaka();
       if (String(event.date ?? "") < today) {
         return res
           .status(400)
